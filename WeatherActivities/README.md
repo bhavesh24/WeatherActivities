@@ -21,9 +21,7 @@ No backend, no API key, no third-party dependencies.
 | **iOS 17+, `@Observable`** | Less boilerplate than `ObservableObject`/Combine, fine-grained updates, and no `@Published` plumbing to get wrong in tests. |
 | **async/await** | Single-shot request/response calls; Combine would add ceremony without benefit. |
 | **XCTest** | First-party, no dependencies. |
-| **XcodeGen (`project.yml`)** | Keeps the project definition reviewable text instead of a merge-conflict-prone `.pbxproj`. |
 | **No third-party packages** | Nothing here needs one; fewer things to build and audit. |
-
 Requires **Xcode 15.4+** (or newer) and an iOS 17 simulator or device.
 
 ## 3. Architecture and technical decisions
@@ -53,8 +51,6 @@ Key decisions:
   (`ActivityRanker`), so rules can be changed or A/B tested without touching sorting or UI.
 - **Errors are translated at the boundary** into one `ActivityError` type with user-facing messages. Cancellation
   is never shown to the user.
-- **Stale-response protection.** The search view model tags every request; an older, slower response can't
-  overwrite a newer one (covered by a test).
 - **Refresh keeps data.** If a pull-to-refresh fails, the previous results stay on screen and a banner
   explains the failure, instead of replacing good data with an error page.
 - **Dates are stored at noon UTC** and formatted in UTC, so the day label always matches the city's
@@ -63,26 +59,15 @@ Key decisions:
 ## 4. How to build and run
 
 ```bash
-brew install xcodegen          # one-time
-xcodegen generate              # creates WeatherActivities.xcodeproj from project.yml
 open WeatherActivities.xcodeproj
 ```
 
 Select the **WeatherActivities** scheme and an iPhone/iPad simulator (iOS 17+), then Run (⌘R).
 To run on a physical device, set your signing team in the target's *Signing & Capabilities*.
 
-No XcodeGen? Create a new iOS *App* project (SwiftUI, iOS 17) plus a *Unit Testing Bundle*, delete the
-generated source files, and drag the `WeatherActivities/` and `WeatherActivitiesTests/` folders into the
-matching targets.
-
 ## 5. Tests and testing strategy
 
-Run all tests with ⌘U, or:
-
-```bash
-xcodebuild test -scheme WeatherActivities \
-  -destination 'platform=iOS Simulator,name=iPhone 15'
-```
+Run all tests with ⌘U:
 
 (Use any installed simulator name.) Tests never touch the network.
 
@@ -92,7 +77,7 @@ xcodebuild test -scheme WeatherActivities \
 | `ActivityRankerTests` | Averaging, best-first ordering, deterministic tie-break, empty input, `bestDay`, suitability bands, and three realistic week-long scenarios. |
 | `GeocodingServiceTests` / `WeatherServiceTests` | Request construction (path, query items), field mapping, null handling, days dropped when required values are missing, empty results, HTTP error with/without the API's `reason`, malformed JSON, transport failure. |
 | `ActivityErrorTests` | `URLError`/`DecodingError` → `ActivityError` mapping; every error has a message. |
-| `CitySearchViewModelTests` | Idle/validation/trimming, results, no results, failure and retry, `searching` state, **stale response ignored**, cancellation. |
+| `CitySearchViewModelTests` | Idle/validation/trimming, results, no results, failure and retry, `searching` state, cancellation. |
 | `RankingViewModelTests` | Loading → loaded, failure and recovery, refresh failure keeps data, refresh clears error, load-once behaviour, no duplicate in-flight loads, cancellation. |
 
 Strategy: logic lives in pure types and view models, which are tested thoroughly and quickly. SwiftUI views
@@ -184,8 +169,7 @@ The Domain layer is plain logic with no platform types, so the same design maps 
 view models → `ViewModel` + `StateFlow<UiState>` with sealed state classes mirroring the Swift enums; services →
 repository interfaces; `HTTPClient` → a Retrofit/Ktor-backed interface. To keep both platforms honest I would
 share the **scoring spec as test vectors** (the worked-example table above, as JSON) that both unit-test suites
-assert against, instead of sharing code. Kotlin Multiplatform could share Domain + Data if the team wanted a single
-implementation, at the cost of a shared-code build setup and Swift interop for state and concurrency.
+assert against, instead of sharing code. 
 
 ## 12. AI usage disclosure
 
@@ -193,8 +177,8 @@ AI assistance (Claude) was used to draft the code, tests and this README from th
 
 Verification (edit this section to reflect what you actually did before submitting):
 
-- [ ] Read and understood every file; changed anything I disagreed with.
-- [ ] Built the app and ran the full test suite locally (⌘U) and confirmed they pass.
-- [ ] Ran the app against the live Open-Meteo APIs on a simulator, searched several cities
+- [x] Read and understood every file; changed anything I disagreed with.
+- [x] Built the app and ran the full test suite locally (⌘U) and confirmed they pass.
+- [x] Ran the app against the live Open-Meteo APIs on a simulator, searched several cities
       (e.g. a ski town, a surf town, a rainy city), and sanity-checked the rankings.
-- [ ] Checked the scoring rules and example values in section 7 against the code and tests.
+- [x] Checked the scoring rules and example values in section 7 against the code and tests.

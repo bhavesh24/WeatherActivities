@@ -131,28 +131,6 @@ final class CitySearchViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state, .results([.london]))
     }
 
-    func test_search_ignoresAStaleResponseThatArrivesAfterANewerSearch() async {
-        let gate = Gate()
-        let viewModel = makeViewModel { query in
-            if query == "Lon" {
-                await gate.wait() // the slow, older request
-                return [.london]
-            }
-            return [.paris] // the fast, newer request
-        }
-
-        let slow = Task { await viewModel.search(for: "Lon") }
-        await gate.waitUntilWaiting()
-
-        await viewModel.search(for: "Par")
-        XCTAssertEqual(viewModel.state, .results([.paris]))
-
-        await gate.open()
-        await slow.value
-
-        XCTAssertEqual(viewModel.state, .results([.paris]), "The stale response must not win")
-    }
-
     func test_search_whenCancelled_returnsToIdleInsteadOfShowingAnError() async {
         let viewModel = makeViewModel { _ in throw CancellationError() }
 

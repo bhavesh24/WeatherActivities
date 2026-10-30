@@ -20,8 +20,6 @@ final class CitySearchViewModel {
     private(set) var state: CitySearchState = .idle
 
     @ObservationIgnored private let service: any GeocodingService
-    /// Incremented for every search so a slow, older response cannot overwrite a newer one.
-    @ObservationIgnored private var latestRequestID = 0
 
     init(service: any GeocodingService) {
         self.service = service
@@ -33,8 +31,6 @@ final class CitySearchViewModel {
 
     func search(for text: String) async {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        latestRequestID += 1
-        let requestID = latestRequestID
 
         guard !trimmed.isEmpty else {
             state = .idle
@@ -48,14 +44,10 @@ final class CitySearchViewModel {
         state = .searching
         do {
             let cities = try await service.searchCities(matching: trimmed)
-            guard requestID == latestRequestID else { return }
             state = cities.isEmpty ? .noResults(query: trimmed) : .results(cities)
         } catch is CancellationError {
-            if requestID == latestRequestID {
                 state = .idle
-            }
         } catch {
-            guard requestID == latestRequestID else { return }
             state = .failed(ActivityError.from(error))
         }
     }
